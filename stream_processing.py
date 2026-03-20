@@ -60,13 +60,10 @@ class StreamingVideoDataset(IterableDataset):
 
                     # Once we have enough frames for a sequence/clip, yield it
                     if len(frames_buffer) == self.clip_length:
-                        # Stack buffer into shape (T, C, H, W)
                         clip_tensor = torch.stack(frames_buffer)
-
-                        # Apply resize and normalization transforms
                         clip_tensor = self.transform(clip_tensor)
 
-                        # Yield the processed tensor (process and train simultaneously)
+                        # Teacher embeddings are computed on-GPU in the training loop.
                         yield clip_tensor
 
                         # Clear buffer for the next clip
@@ -79,22 +76,15 @@ class StreamingVideoDataset(IterableDataset):
 
 # --- Usage Example ---
 if __name__ == "__main__":
-    # Initialize the dataset
     dataset = StreamingVideoDataset(
-        video_dir="data/eastgate/",
-        clip_length=16,  # Model looks at 16 frames at a time
-        sample_every_n=4,  # "Drops" intermediate frames by taking a stride of 4
-        resolution=240  # Downgrades to 240p
+        video_dir="/workspace/datasets/eastgate/",
+        clip_length=16,
+        sample_every_n=4,
+        resolution=240
     )
 
-    # DataLoader streams the data. Using multiple workers speeds up I/O and preprocessing.
     dataloader = DataLoader(dataset, batch_size=4, num_workers=2)
 
-    # Training loop concept
     for batch_idx, video_batch in enumerate(dataloader):
-        # video_batch shape: (Batch_Size, Temporal_Clip_Length, Channels, Height, Width)
-        # e.g., (4, 16, 3, 240, 426)
         print(f"Yielded batch {batch_idx} with shape: {video_batch.shape}")
-
-        # pass to model...
         break

@@ -39,19 +39,17 @@ class TrainConfig:
         self.checkpoint_folder = checkpoint_folder
 
 
-def train_model(model, config):
-    # Startup Diagnostic: Helpful for verifying remote paths in RunPod logs
+def train_model(model, teacher_model, config):
     print(f"--- Training Initialization ---")
     print(f"Checkpoints will be saved to: {os.path.abspath(config.checkpoint_folder)}")
     print(f"-------------------------------")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
+    teacher_model.to(device)
+    teacher_model.eval()
 
-    # Initialize the optimizer
     optimiser = config.optimizer_cls(model.parameters(), lr=config.learning_rate)
-
-    # Tracking a dictionary of losses can be helpful since your loss_fn returns multiple parts
     epoch_history = {'total_loss': [], 'semantic_loss': [], 'compression_loss': []}
 
     for epoch in range(config.num_epochs):
@@ -60,47 +58,52 @@ def train_model(model, config):
         total_semantic = 0.0
         total_compression = 0.0
 
-        # Assuming your DataLoader yields a tuple: (video, orig_embeds, masked_embeds)
-        for video, orig_embeds, masked_embeds in config.train_loader:
-            # Move data to the same device as the model directly
-            video = video.to(device)
-            orig_embeds = orig_embeds.to(device)
-            masked_embeds = masked_embeds.to(device)
+        num_batches = 0
+        for batch_idx, video in enumerate(config.train_loader):
+            video = video.to(device, non_blocking=True)
 
-            # Forward pass is now much cleaner
+            with torch.no_grad():
+                orig_embeds, masked_embeds = teacher_model(video)
+
             outputs = model(video)
-
             loss, semantic_loss, compression_loss = config.loss_fn(
                 orig_embeds, masked_embeds, outputs
             )
 
-            # Backward pass and optimization
-            # set_to_none=True is a slight memory/performance optimization over standard zero_grad()
             optimiser.zero_grad(set_to_none=True)
             loss.backward()
             optimiser.step()
 
-            # Accumulate losses
             total_loss += loss.item()
             total_semantic += semantic_loss.item()
             total_compression += compression_loss.item()
+            num_batches += 1
 
-        # Calculate averages
-        num_batches = len(config.train_loader)
+            if batch_idx % 5 == 0:
+                print(
+                    f"Epoch [{epoch + 1}/{config.num_epochs}] Batch [{batch_idx}] "
+                    f"Loss: {loss.item():.4f} | Sem: {semantic_loss.item():.4f} | Comp: {compression_loss.item():.4f}",
+                    flush=True,
+                )
+
+        if num_batches == 0:
+            print(f"Epoch [{epoch + 1}/{config.num_epochs}] | No batches yielded.", flush=True)
+            continue
+
         avg_loss = total_loss / num_batches
         avg_sem = total_semantic / num_batches
         avg_comp = total_compression / num_batches
 
         print(
-            f'Epoch [{epoch + 1}/{config.num_epochs}] | Total: {avg_loss:.4f} | Sem: {avg_sem:.4f} | Comp: {avg_comp:.4f}')
+            f"Epoch [{epoch + 1}/{config.num_epochs}] | Total: {avg_loss:.4f} | Sem: {avg_sem:.4f} | Comp: {avg_comp:.4f}",
+            flush=True,
+        )
 
         epoch_history['total_loss'].append(avg_loss)
         epoch_history['semantic_loss'].append(avg_sem)
         epoch_history['compression_loss'].append(avg_comp)
 
-        # Save checkpoints as needed for the models
         if (epoch + 1) % config.save_freq == 0:
             save_model(model, epoch + 1, folder=config.checkpoint_folder)
 
-    # Return epoch history for potential logging
     return epoch_history

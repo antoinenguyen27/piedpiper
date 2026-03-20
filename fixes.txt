@@ -1,0 +1,59 @@
+# PIED PIPER PROJECT: REMOTE-TO-LOCAL SYNC INSTRUCTIONS
+# Target: Agent / Developer
+# Goal: Resolve pathing, data-loading, and mathematical collapse issues for RunPod deployment.
+
+---
+GENERAL CONTEXT:
+The project is running on a RunPod instance where the code is in '/workspace/piedpiper'
+and the data is in '/workspace/datasets'. The 'piedpiper' and 'datasets' folders
+are siblings. The current code fails due to relative path assumptions and
+a mismatch between the Dataset output and the Training Loop's expectations.
+
+---
+1. FILE: setup.sh
+   - ISSUE: Remote containers lack the shared libraries for OpenCV (cv2) and FFmpeg.
+   - TASK: Ensure 'apt-get update' is followed by installing:
+     'libgl1-mesa-glx', 'ffmpeg', and 'libglib2.0-0'.
+   - TASK: Include 'nano' for emergency remote editing.
+   - TASK: Ensure the script handles virtual environment (venv) creation and
+     activation consistently.
+
+2. FILE: stream_processing.py
+   - ISSUE 1: 'video_dir' uses relative paths that fail when the script is
+     executed from the project subfolder.
+   - FIX: Standardize 'video_dir' to use absolute paths (e.g., '/workspace/datasets/eastgate/').
+   - ISSUE 2: 'StreamingVideoDataset' was yielding a 3-item tuple with dummy zeros.
+   - FIX: Revert the '__iter__' method to yield ONLY the 'clip_tensor'.
+   - RATIONALE: To avoid CPU/Worker bottlenecks and memory overhead, we will
+     compute embeddings on the GPU within the training loop, not the data loader.
+
+3. FILE: train_helpers.py
+   - ISSUE 1: The training loop 'for video, orig, masked in loader' fails
+     because the loader now only yields 'video'.
+   - FIX: Change the loop signature to 'for batch_idx, video in enumerate(config.train_loader)'.
+   - ISSUE 2 (CRITICAL): The loss is collapsing to 1.0.
+   - RATIONALE: This happens because the model is being compared to dummy zero-tensors.
+     Cosine similarity with a zero-vector is 0, resulting in a loss of (1 - 0) = 1.
+   - FIX: Integrate the Teacher Model (VideoPrism) directly into the 'train_model'
+     function.
+   - LOGIC: Inside the loop, wrap 'teacher_model(video)' in a 'torch.no_grad()'
+     block to generate the 'orig_embeds' and 'masked_embeds' dynamically.
+     Pass these real embeddings to the loss function.
+   - ISSUE 3: Logging is too infrequent (per epoch) for remote monitoring.
+   - FIX: Implement per-batch logging (e.g., every 5 batches) using
+     'print(..., flush=True)' to ensure real-time visibility in SSH terminals.
+
+4. FILE: train.py
+   - ISSUE: The script is missing Teacher Model initialization.
+   - TASK: Initialize the 'VideoPrism' model (e.g., via torch.hub or local weights).
+   - TASK: Pass the 'VideoPrism' model as the second argument to 'train_model'.
+   - TASK: Update the 'DataLoader' to use 'num_workers=4' and 'pin_memory=True'
+     to optimize the handoff between the CPU (decoding video) and the GPU (training).
+   - TASK: Ensure 'video_dir' points to the absolute path '/workspace/datasets/eastgate/'.
+
+---
+SUMMARY OF THE PIPELINE:
+- Dataset: Streams raw video clips from the Network Volume.
+- Teacher: (VideoPrism) Generates high-dimensional semantic targets on the GPU.
+- Student: (VideoCompressor) Attempts to match the Teacher's embeddings.
+- Loss: Semantic loss should now move from ~1.0 toward 0.0 as similarity increases.

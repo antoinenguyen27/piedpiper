@@ -56,6 +56,9 @@ train_dataset = StreamingVideoDataset(
     resolution=240,
 )
 
+alpha = 1.0
+beta = 1e-7 # 1e-6 to 1e-8 as a starting point, tune and maybe think about loss shaping
+
 optimizer_cls = optim.Adam
 loss_fn = SemanticCompressionLoss()
 train_dataloader = DataLoader(train_dataset, batch_size=4, num_workers=4, pin_memory=True)

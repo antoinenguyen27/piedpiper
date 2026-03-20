@@ -1,0 +1,24 @@
+# Core Deep Learning Framework
+# Using 2.4 as requested, with CUDA 12.1/12.4 support for the 4090
+torch==2.4.0
+torchvision==0.19.0
+torchaudio==2.4.0
+
+# Video Processing & IO (Crucial for the 4090 pipeline)
+# decord is significantly faster than OpenCV for random access
+decord>=0.6.0
+opencv-python-headless
+av  # Required for some VideoPrism decoders
+
+# Model Architecture & Weights
+# transformers for VideoPrism/HuggingFace integration
+transformers>=4.44.0
+accelerate>=0.33.0
+ultralytics  # If using YOLO for the initial cleaning/detection
+
+# Data & Utilities
+gdown        # To pull from the Google Drive link
+huggingface_hub
+numpy<2.0.0  # Better compatibility with current torch 2.4 wheels
+pandas
+tqdm         # For progress bars during long 101-hour processing

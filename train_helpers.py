@@ -48,6 +48,8 @@ def train_model(model, teacher_model, config):
     model.to(device)
     teacher_model.to(device)
     teacher_model.eval()
+    for param in teacher_model.parameters():
+        param.requires_grad = False
 
     optimiser = config.optimizer_cls(model.parameters(), lr=config.learning_rate)
     epoch_history = {'total_loss': [], 'semantic_loss': [], 'compression_loss': []}
@@ -62,12 +64,19 @@ def train_model(model, teacher_model, config):
         for batch_idx, video in enumerate(config.train_loader):
             video = video.to(device, non_blocking=True)
 
-            with torch.no_grad():
-                orig_embeds, masked_embeds = teacher_model(video)
+            masks = model(video)
+            if masks.dim() != 2:
+                raise ValueError(f"Expected masks with shape (B, T), got {tuple(masks.shape)}")
 
-            outputs = model(video)
+            mask_5d = masks.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+            masked_video = video * mask_5d
+
+            with torch.no_grad():
+                orig_embeds, _ = teacher_model(video)
+                masked_embeds, _ = teacher_model(masked_video)
+
             loss, semantic_loss, compression_loss = config.loss_fn(
-                orig_embeds, masked_embeds, outputs
+                orig_embeds, masked_embeds, masks
             )
 
             optimiser.zero_grad(set_to_none=True)
@@ -80,9 +89,12 @@ def train_model(model, teacher_model, config):
             num_batches += 1
 
             if batch_idx % 5 == 0:
+                embed_delta = (orig_embeds - masked_embeds).abs().mean().item()
                 print(
                     f"Epoch [{epoch + 1}/{config.num_epochs}] Batch [{batch_idx}] "
-                    f"Loss: {loss.item():.4f} | Sem: {semantic_loss.item():.4f} | Comp: {compression_loss.item():.4f}",
+                    f"Loss: {loss.item():.4f} | Sem: {semantic_loss.item():.4f} | "
+                    f"Comp: {compression_loss.item():.4f} | MaskMean: {masks.mean().item():.4f} | "
+                    f"EmbedDelta: {embed_delta:.6f}",
                     flush=True,
                 )
 

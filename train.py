@@ -48,7 +48,7 @@ class VideoPrismTeacher(torch.nn.Module):
 
 
 compressor = VideoCompressor()
-model_path = Path(MODEL_DIR) / "videoprism_public_v1_base.npz"
+model_path = Path(MODEL_DIR) / "flax_base_f16r288_repeated.npz"
 if not model_path.is_file():
     raise FileNotFoundError(
         f"VideoPrism weights not found at: {model_path}. "

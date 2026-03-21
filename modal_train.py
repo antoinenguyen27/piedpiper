@@ -62,7 +62,7 @@ def train(
     batch_size: int = 4,
     learning_rate: float = 1e-3,
     save_freq: int = 2,
-    model_weights: str = "/data/models/videoprism_public_v1_base.npz",
+    model_weights: str = "/data/models/flax_base_f16r288_repeated.npz",
     data_dir: str = "/data/datasets/eastgate/",
     checkpoint_dir: str = "/data/checkpoints",
 ):
@@ -170,10 +170,64 @@ def train(
 
 
 # ---------------------------------------------------------------------------
+# Data Setup
+# ---------------------------------------------------------------------------
+
+@app.function(
+    image=image,
+    volumes={VOLUME_MOUNT: volume},
+    timeout=60 * 60,  # 1 hour to download
+)
+def setup_data():
+    """Downloads dataset from Google Drive and model weights from HuggingFace."""
+    import os
+    import gdown
+    from huggingface_hub import hf_hub_download
+
+    print("=== Setting up data in Modal Volume ===")
+    
+    # 1. Download Model Weights
+    model_dir = "/data/models"
+    os.makedirs(model_dir, exist_ok=True)
+    model_path = os.path.join(model_dir, "flax_base_f16r288_repeated.npz")
+    
+    if not os.path.exists(model_path):
+        print("Downloading VideoPrism weights from HuggingFace...")
+        hf_hub_download(
+            repo_id="google/videoprism-base-f16r288",
+            filename="flax_base_f16r288_repeated.npz",
+            local_dir=model_dir
+        )
+    else:
+        print("Model weights already exist.")
+
+    # 2. Download Dataset
+    dataset_dir = "/data/datasets/eastgate"
+    os.makedirs(dataset_dir, exist_ok=True)
+    
+    # Simple check if dataset is empty
+    if not os.listdir(dataset_dir):
+        print("Downloading Eastgate dataset from Google Drive...")
+        gdown.download_folder(
+            id="1cR1VwoAvEjFLRaUzeYph-bxx4LoM6pOH",
+            output=dataset_dir,
+            quiet=False,
+            use_cookies=False
+        )
+    else:
+        print("Dataset already appears to be downloaded.")
+        
+    volume.commit()
+    print("=== Data setup complete ===")
+
+# ---------------------------------------------------------------------------
 # Local entrypoint  (modal run modal_train.py)
 # ---------------------------------------------------------------------------
 
 @app.local_entrypoint()
-def main():
+def main(setup: bool = False):
+    if setup:
+        setup_data.remote()
+    
     result = train.remote()
     print("Epoch history:", result)

@@ -40,6 +40,9 @@ image = (
         "numpy<2.0.0",
         "pandas",
         "tqdm",
+        # Setup tools
+        "gdown",
+        "huggingface_hub",
     )
     .add_local_dir(".", remote_path="/app")  # copy project source into the image
 )
@@ -59,7 +62,7 @@ VOLUME_MOUNT = "/data"
 )
 def train(
     num_epochs: int = 10,
-    batch_size: int = 4,
+    batch_size: int = 128,
     learning_rate: float = 1e-3,
     save_freq: int = 2,
     model_weights: str = "/data/models/flax_base_f16r288_repeated.npz",

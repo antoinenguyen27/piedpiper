@@ -54,6 +54,11 @@ def train_model(model, teacher_model, config):
     optimiser = config.optimizer_cls(model.parameters(), lr=config.learning_rate)
     epoch_history = {'total_loss': [], 'semantic_loss': [], 'compression_loss': []}
 
+    try:
+        total_batches_str = str(len(config.train_loader))
+    except TypeError:
+        total_batches_str = "?"
+
     for epoch in range(config.num_epochs):
         model.train()
         total_loss = 0.0
@@ -73,7 +78,8 @@ def train_model(model, teacher_model, config):
 
             with torch.no_grad():
                 orig_embeds, _ = teacher_model(video)
-                masked_embeds, _ = teacher_model(masked_video)
+            
+            masked_embeds, _ = teacher_model(masked_video)
 
             loss, semantic_loss, compression_loss = config.loss_fn(
                 orig_embeds, masked_embeds, masks
@@ -90,11 +96,14 @@ def train_model(model, teacher_model, config):
 
             if batch_idx % 5 == 0:
                 embed_delta = (orig_embeds - masked_embeds).abs().mean().item()
+                
+                batches_remaining = "?" if total_batches_str == "?" else str(int(total_batches_str) - (batch_idx + 1))
+                
                 print(
-                    f"Epoch [{epoch + 1}/{config.num_epochs}] Batch [{batch_idx}] "
-                    f"Loss: {loss.item():.4f} | Sem: {semantic_loss.item():.4f} | "
-                    f"Comp: {compression_loss.item():.4f} | MaskMean: {masks.mean().item():.4f} | "
-                    f"EmbedDelta: {embed_delta:.6f}",
+                    f"Epoch [{epoch + 1}/{config.num_epochs}] Batch [{batch_idx}/{total_batches_str}] (Rem: {batches_remaining}) "
+                    f"Loss: {loss.item():.8f} | Sem: {semantic_loss.item():.8f} | "
+                    f"Comp: {compression_loss.item():.8f} | MaskMean: {masks.mean().item():.8f} | "
+                    f"EmbedDelta: {embed_delta:.8f}",
                     flush=True,
                 )
 

@@ -76,8 +76,10 @@ class StreamingVideoDataset(IterableDataset):
 
 # --- Usage Example ---
 if __name__ == "__main__":
+    import os as _os
+    _data_dir = _os.environ.get("PIEDPIPER_DATA_DIR", "/data/datasets/eastgate/")
     dataset = StreamingVideoDataset(
-        video_dir="/workspace/datasets/eastgate/",
+        video_dir=_data_dir,
         clip_length=16,
         sample_every_n=4,
         resolution=240

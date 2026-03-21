@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import numpy as np
@@ -9,6 +10,11 @@ from cnn_compress import VideoCompressor
 from stream_processing import StreamingVideoDataset
 from loss_func import SemanticCompressionLoss
 from train_helpers import train_model, TrainConfig
+
+# Paths are configurable via environment variables so the same code works on
+# Modal, RunPod, or a local workstation.
+MODEL_DIR = os.environ.get("PIEDPIPER_MODEL_DIR", "/data/models")
+DATA_DIR = os.environ.get("PIEDPIPER_DATA_DIR", "/data/datasets/eastgate/")
 
 
 class VideoPrismTeacher(torch.nn.Module):
@@ -42,15 +48,15 @@ class VideoPrismTeacher(torch.nn.Module):
 
 
 compressor = VideoCompressor()
-model_path = Path("/workspace/models/videoprism_public_v1_base.npz")
+model_path = Path(MODEL_DIR) / "videoprism_public_v1_base.npz"
 if not model_path.is_file():
     raise FileNotFoundError(
         f"VideoPrism weights not found at: {model_path}. "
-        "Expected file: /workspace/models/videoprism_public_v1_base.npz"
+        f"Set PIEDPIPER_MODEL_DIR env var or place weights in {MODEL_DIR}."
     )
 teacher_model = VideoPrismTeacher(str(model_path))
 train_dataset = StreamingVideoDataset(
-    video_dir="/workspace/datasets/eastgate/",
+    video_dir=DATA_DIR,
     clip_length=16,
     sample_every_n=4,
     resolution=240,

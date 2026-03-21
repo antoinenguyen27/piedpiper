@@ -1,4 +1,6 @@
 #!/bin/bash
+# ⚠️  DEPRECATED for cloud usage — Modal image definition handles system/pip deps.
+#     This script is kept for local development only.
 set -euo pipefail
 
 apt-get update

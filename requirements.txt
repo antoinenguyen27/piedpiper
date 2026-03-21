@@ -1,8 +1,11 @@
 # Core Deep Learning Framework
-# Using 2.4 as requested, with CUDA 12.1/12.4 support for the 4090
+# torch 2.4 with CUDA 12 support (H100 / A100 / 4090)
 torch==2.4.0
 torchvision==0.19.0
 torchaudio==2.4.0
+
+# Cloud GPU orchestration
+modal
 
 # Video Processing & IO (Crucial for the 4090 pipeline)
 # decord is significantly faster than OpenCV for random access

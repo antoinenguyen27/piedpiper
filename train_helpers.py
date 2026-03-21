@@ -4,7 +4,7 @@ import torch.nn as nn
 
 # --- Environment Setup ---
 # This ensures the checkpoint folder is always relative to this script's location,
-# which is the most reliable way to handle paths on a remote RunPod instance.
+# which is the most reliable way to handle paths on any remote instance.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CHECKPOINT_FOLDER = os.path.join(SCRIPT_DIR, "model_checkpoints")
 

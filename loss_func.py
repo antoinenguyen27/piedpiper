@@ -6,59 +6,71 @@ import torch.nn.functional as F
 class SemanticCompressionLoss(nn.Module):
     def __init__(
         self,
-        alpha=1.0,
-        beta=0.1,
-        gamma=0.1,
-        eps=1e-8,
+        alpha=20.0,          # semantic dominates
+        beta=0.01,           # small auxiliary compression regulariser
+        target_keep_ratio=0.2,
+        semantic_threshold=0.05,   # kept for compatibility
+        gate_strength=10.0,        # kept for compatibility
     ):
-        """
-        alpha: Weight for preserving semantic meaning
-        beta:  Weight for overall compression (smaller average masks)
-        gamma: Weight for discouraging uniform masks across time
-        eps:   Small constant for numerical stability
-        """
-        super(SemanticCompressionLoss, self).__init__()
+        super().__init__()
         self.alpha = alpha
         self.beta = beta
-        self.gamma = gamma
-        self.eps = eps
+        self.target_keep_ratio = target_keep_ratio
+        self.semantic_threshold = semantic_threshold
+        self.gate_strength = gate_strength
+
+    def build_topk_mask(self, scores):
+        """
+        scores: (B, T) raw mask logits / scores
+
+        Returns:
+            soft_mask: (B, T) sigmoid(scores)
+            hard_mask: (B, T) binary top-k mask
+            st_mask:   (B, T) straight-through version:
+                       forward = hard, backward = soft
+        """
+        B, T = scores.shape
+        k = max(1, int(round(T * self.target_keep_ratio)))
+
+        soft_mask = torch.sigmoid(scores)
+
+        topk_idx = scores.topk(k, dim=1).indices
+        hard_mask = torch.zeros_like(scores)
+        hard_mask.scatter_(1, topk_idx, 1.0)
+
+        # Straight-through estimator:
+        # forward uses hard mask, backward flows through soft mask
+        st_mask = hard_mask.detach() - soft_mask.detach() + soft_mask
+
+        return soft_mask, hard_mask, st_mask
 
     def forward(self, orig_embeds, masked_embeds, masks):
         """
-        orig_embeds:   (Batch, Feature_Dim)
-        masked_embeds: (Batch, Feature_Dim)
-        masks:         (Batch, Time)
+        orig_embeds:   (B, D)
+        masked_embeds: (B, D)
+        masks:         (B, T) raw logits / scores, NOT sigmoid outputs
+
+        IMPORTANT:
+        Your MODEL should use the same top-k masking logic in its forward pass
+        when producing masked_embeds. This loss does not re-mask embeddings;
+        it just builds the same top-k mask for regularisation / logging.
         """
 
-        # --- 1. Semantic Loss ---
-        # Cosine similarity preserves semantic direction, but by itself it
-        # allows the "dimmer switch" exploit because it ignores scale.
-        cos_sim = F.cosine_similarity(orig_embeds, masked_embeds, dim=1)
-        semantic_loss = (1.0 - cos_sim).mean()
+        # 1. Build top-k mask from raw scores
+        soft_mask, hard_mask, st_mask = self.build_topk_mask(masks)
 
-        # --- 2. Compression Loss ---
-        # Keep the original compression objective: lower mean mask = stronger compression.
-        compression_loss = masks.mean()
+        # 2. Semantic preservation loss
+        mse = F.mse_loss(masked_embeds, orig_embeds)
+        cos = (1.0 - F.cosine_similarity(orig_embeds, masked_embeds, dim=1)).mean()
+        semantic_loss = mse + 0.1 * cos
 
-        # --- 3. Shape Loss ---
-        # Normalize masks across time so they form a distribution over frames.
-        # This removes absolute scale and lets us measure how UNIFORMLY the mask
-        # mass is spread over time.
-        #
-        # If the model uses a flat mask like [0.2, 0.2, 0.2, 0.2], then after
-        # normalization p is uniform, which has HIGH entropy -> high loss.
-        #
-        # If the model concentrates mass on a subset of frames, p becomes peaky,
-        # which has LOWER entropy -> lower loss.
-        p = masks / (masks.sum(dim=1, keepdim=True) + self.eps)
-        shape_loss = -(p * torch.log(p + self.eps)).sum(dim=1).mean()
+        # 3. Since top-k already enforces exact compression,
+        # compression loss just encourages confident scores
+        # (not all logits hovering near 0 => sigmoid ~ 0.5)
+        binary_loss = (soft_mask * (1.0 - soft_mask)).mean()
 
-        # --- 4. Aggregate ---
-        total_loss = (
-            self.alpha * semantic_loss
-            + self.beta * compression_loss
-            + self.gamma * shape_loss
-        )
+        compression_loss = binary_loss
 
-        # Keep original return style: total + the two main logged components.
+        total_loss = self.alpha * semantic_loss + self.beta * compression_loss
+
         return total_loss, semantic_loss, compression_loss

@@ -41,7 +41,7 @@ image = (
         "pandas",
         "tqdm",
     )
-    .copy_local_dir(".", "/app")  # copy project source into the image
+    .add_local_dir(".", remote_path="/app")  # copy project source into the image
 )
 
 VOLUME_MOUNT = "/data"
@@ -53,7 +53,7 @@ VOLUME_MOUNT = "/data"
 
 @app.function(
     image=image,
-    gpu=modal.gpu.H100(count=1),
+    gpu="H100",
     volumes={VOLUME_MOUNT: volume},
     timeout=60 * 60 * 12,  # 12-hour max
 )

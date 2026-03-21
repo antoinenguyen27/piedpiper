@@ -30,7 +30,8 @@ def test_compress_mixed_inputs(monkeypatch):
     monkeypatch.setenv("PIED_PIPER_API_KEY", "test-key")
     client = TestClient(create_app())
 
-    def fake_compress_text_sources(sources, options):
+    def fake_compress_text_sources(sources, options, *, request_fidelity):
+        assert request_fidelity == 0.55
         return (
             [
                 {
@@ -47,9 +48,30 @@ def test_compress_mixed_inputs(monkeypatch):
             {"origin_tokens": 10 * len(sources), "compressed_tokens": 5 * len(sources)},
         )
 
+    def fake_compress_video_bytes(*, item_id, index, source_name, data, options, request_fidelity):
+        assert source_name == "video.mp4"
+        assert data == b"video-bytes"
+        assert request_fidelity == 0.55
+        return {
+            "id": item_id,
+            "index": index,
+            "modality": "video",
+            "source_name": source_name,
+            "status": "completed",
+            "output_file": {
+                "file_name": "video_compressed.mp4",
+                "content_type": "video/mp4",
+                "data_base64": "dmlkZW8=",
+                "size_bytes": 5,
+            },
+            "metrics": {"clips_kept": 2, "clips_removed": 1},
+        }
+
     monkeypatch.setattr("app.inference.router.compress_text_sources", fake_compress_text_sources)
+    monkeypatch.setattr("app.inference.router.compress_video_bytes", fake_compress_video_bytes)
 
     manifest = {
+        "options": {"fidelity": 0.55},
         "items": [
             {
                 "id": "item_0",
@@ -89,7 +111,8 @@ def test_compress_mixed_inputs(monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "completed"
-    assert [item["status"] for item in payload["items"]] == ["completed", "passthrough", "stubbed"]
+    assert [item["status"] for item in payload["items"]] == ["completed", "passthrough", "completed"]
+    assert payload["items"][2]["output_file"]["content_type"] == "video/mp4"
 
 
 def test_auth_rejects_missing_token(monkeypatch):

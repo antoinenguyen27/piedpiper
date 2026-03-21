@@ -1,7 +1,19 @@
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass, field
 from typing import Any, Literal
+
+
+@dataclass(slots=True)
+class OutputFile:
+    file_name: str
+    content_type: str
+    data_base64: str
+    size_bytes: int
+
+    def as_bytes(self) -> bytes:
+        return base64.b64decode(self.data_base64)
 
 
 @dataclass(slots=True)
@@ -12,6 +24,7 @@ class CompressionItemResult:
     source_name: str
     status: Literal["completed", "passthrough", "stubbed", "failed"]
     output_text: str | None = None
+    output_file: OutputFile | None = None
     message: str | None = None
     metrics: dict[str, Any] | None = None
     error: str | None = None
@@ -35,11 +48,15 @@ class CompressionResult:
 
 
 def compression_result_from_dict(payload: dict[str, Any]) -> CompressionResult:
-    items = [CompressionItemResult(**item) for item in payload.get("items", [])]
+    items = []
+    for item in payload.get("items", []):
+        output_file = item.get("output_file")
+        if output_file is not None:
+            item = {**item, "output_file": OutputFile(**output_file)}
+        items.append(CompressionItemResult(**item))
     return CompressionResult(
         request_id=payload["request_id"],
         status=payload["status"],
         items=items,
         usage=payload.get("usage"),
     )
-

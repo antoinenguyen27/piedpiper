@@ -41,7 +41,15 @@ def _is_ambiguous_file_string(value: str) -> bool:
     return Path(value).expanduser().exists()
 
 
-def normalize_input(input_value: Any) -> NormalizedRequest:
+def _validate_fidelity(fidelity: float) -> float:
+    value = float(fidelity)
+    if not 0.0 < value < 1.0:
+        raise RequestError("fidelity must be between 0 and 1.")
+    return value
+
+
+def normalize_input(input_value: Any, *, fidelity: float = 0.33) -> NormalizedRequest:
+    fidelity = _validate_fidelity(fidelity)
     items = _flatten_input(input_value)
     manifest_items: list[dict[str, Any]] = []
     uploads: list[FileUpload] = []
@@ -101,11 +109,25 @@ def normalize_input(input_value: Any) -> NormalizedRequest:
         manifest={
             "sdk_version": "0.1.0",
             "options": {
+                "fidelity": fidelity,
                 "text": {
-                    "rate": 0.33,
+                    "fidelity": fidelity,
                     "target_token": -1,
                     "chunk_chars": 4000,
                     "overlap_chars": 300,
+                    "drop_consecutive": True,
+                },
+                "video": {
+                    "prompt": None,
+                    "fidelity": None,
+                    "mode": None,
+                    "novelty_threshold": 0.93,
+                    "max_gap_seconds": 30.0,
+                    "min_clip_seconds": 1.0,
+                    "merge_gap_seconds": 0.75,
+                    "padding_seconds": 0.25,
+                    "shot_threshold": 0.5,
+                    "max_inline_bytes": 16000000,
                 }
             },
             "items": manifest_items,

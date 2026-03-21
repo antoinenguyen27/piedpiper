@@ -23,8 +23,9 @@ image = (
 
 @app.function(
     image=image,
-    cpu=0.125,
-    memory=128,
+    gpu="T4",
+    cpu=4.0,
+    memory=8192,
     secrets=[modal.Secret.from_name("pied-piper-backend")],
     min_containers=0,
 )

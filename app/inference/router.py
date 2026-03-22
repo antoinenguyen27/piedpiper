@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request, UploadFile, status
 from .image_pipeline import passthrough_image
 from .schemas import CompressionManifest, CompressionItemResult, CompressionResponse, UsageSummary
 from .text_pipeline import SourceText, TEXT_SUFFIXES, compress_text_sources, extract_text, normalize_text
-from .video_pipeline import stub_video
+from .video_pipeline import compress_video_bytes
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"}
 VIDEO_SUFFIXES = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
@@ -115,11 +115,15 @@ async def process_manifest(
                 continue
 
             if modality == "video":
+                data = await upload.read()
                 results.append(
-                    stub_video(
+                    compress_video_bytes(
                         item_id=item.id,
                         index=item.index,
                         source_name=item.source_name,
+                        data=data,
+                        options=manifest.options.video,
+                        request_fidelity=manifest.options.fidelity,
                     )
                 )
                 continue
@@ -144,7 +148,11 @@ async def process_manifest(
     usage = UsageSummary()
     if pending_text:
         try:
-            text_results, text_usage = compress_text_sources(pending_text, manifest.options.text)
+            text_results, text_usage = compress_text_sources(
+                pending_text,
+                manifest.options.text,
+                request_fidelity=manifest.options.fidelity,
+            )
             results.extend(text_results)
             usage = UsageSummary(**text_usage)
         except Exception as exc:

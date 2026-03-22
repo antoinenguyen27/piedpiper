@@ -9,9 +9,11 @@ from pied_piper.inputs import normalize_input
 
 
 def test_normalize_inline_text():
-    request = normalize_input("hello")
+    request = normalize_input("hello", fidelity=0.55)
     assert request.manifest["items"][0]["source_type"] == "inline_text"
     assert request.manifest["items"][0]["text"] == "hello"
+    assert request.manifest["options"]["fidelity"] == 0.55
+    assert request.manifest["options"]["text"]["fidelity"] == 0.55
 
 
 def test_normalize_path_input(tmp_path: Path):
@@ -40,3 +42,7 @@ def test_reject_unsupported_suffix(tmp_path: Path):
     with pytest.raises(RequestError):
         normalize_input(path)
 
+
+def test_reject_invalid_fidelity():
+    with pytest.raises(RequestError):
+        normalize_input("hello", fidelity=1.5)

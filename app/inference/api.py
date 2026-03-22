@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, Request
 
 from .auth import require_api_key
 from .router import parse_manifest_request, process_manifest
+from .runtime import warm_inference_runtime
 from .schemas import CompressionResponse, HealthResponse
 
 
@@ -39,5 +40,11 @@ def create_app() -> FastAPI:
             uploads,
             request_id=f"req_{uuid4().hex}",
         )
+
+    @app.on_event("startup")
+    async def preload_models() -> None:
+        if os.environ.get("PIED_PIPER_PRELOAD_MODELS") != "1":
+            return
+        warm_inference_runtime()
 
     return app

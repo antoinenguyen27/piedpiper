@@ -8,7 +8,7 @@ from .exceptions import (
     RequestError,
     ServerError,
 )
-from .models import CompressionItemResult, CompressionResult
+from .models import CompressionItemResult, CompressionResult, OutputFile
 
 _default_client: Client | None = None
 
@@ -20,8 +20,8 @@ def _get_default_client() -> Client:
     return _default_client
 
 
-def compress(input):
-    return _get_default_client().compress(input)
+def compress(input, *, fidelity: float = 0.33):
+    return _get_default_client().compress(input, fidelity=fidelity)
 
 
 __all__ = [
@@ -30,9 +30,9 @@ __all__ = [
     "CompressionItemResult",
     "CompressionResult",
     "ConfigurationError",
+    "OutputFile",
     "PiedPiperError",
     "RequestError",
     "ServerError",
     "compress",
 ]
-

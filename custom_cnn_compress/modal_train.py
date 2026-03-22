@@ -21,6 +21,8 @@ app = modal.App("piedpiper-train")
 # Persistent volume for datasets, model weights, and checkpoints
 volume = modal.Volume.from_name("piedpiper-data", create_if_missing=True)
 
+
+# Install dependencies remotely
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("ffmpeg", "libgl1-mesa-glx", "libglib2.0-0")
@@ -36,6 +38,9 @@ image = (
         # Model ecosystem
         "transformers>=4.44.0",
         "accelerate>=0.33.0",
+        "huggingface_hub",
+
+        "gdown",
         # Utilities
         "numpy<2.0.0",
         "pandas",

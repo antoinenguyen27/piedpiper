@@ -70,6 +70,9 @@ class CustomBERTCompressor:
                 max_length=512
             ).to(self.device)
 
+            # DistilBERT does not accept token_type_ids; drop it if present
+            inputs.pop("token_type_ids", None)
+
             input_ids = inputs["input_ids"][0]
             total_origin += len(input_ids)
 

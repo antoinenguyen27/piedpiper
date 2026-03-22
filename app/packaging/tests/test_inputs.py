@@ -16,6 +16,39 @@ def test_normalize_inline_text():
     assert request.manifest["options"]["text"]["fidelity"] == 0.55
 
 
+def test_normalize_multiline_inline_text():
+    text = """
+Pied Piper is acting as a preprocessing step before the LLM call.
+The goal is to shorten verbose source material while keeping the main facts.
+This toy example uses only inline text so the setup stays simple.
+The compressed result is then forwarded into a normal OpenAI API request.
+""".strip()
+
+    request = normalize_input(text)
+    assert request.manifest["items"][0]["source_type"] == "inline_text"
+    assert request.manifest["items"][0]["text"] == text
+
+
+def test_normalize_inline_text_when_path_probe_raises_oserror(monkeypatch: pytest.MonkeyPatch):
+    def raise_oserror(self) -> bool:
+        raise OSError("file name too long")
+
+    monkeypatch.setattr(Path, "exists", raise_oserror)
+
+    request = normalize_input("inline text that should not be treated as a path")
+    assert request.manifest["items"][0]["source_type"] == "inline_text"
+
+
+def test_normalize_inline_text_when_expanduser_raises(monkeypatch: pytest.MonkeyPatch):
+    def raise_runtime_error(self) -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "expanduser", raise_runtime_error)
+
+    request = normalize_input("~/not-a-real-user/note.txt")
+    assert request.manifest["items"][0]["source_type"] == "inline_text"
+
+
 def test_normalize_path_input(tmp_path: Path):
     path = tmp_path / "note.txt"
     path.write_text("hello", encoding="utf-8")

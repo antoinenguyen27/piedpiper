@@ -38,7 +38,10 @@ def _flatten_input(input_value: Any) -> list[Any]:
 
 
 def _is_ambiguous_file_string(value: str) -> bool:
-    return Path(value).expanduser().exists()
+    try:
+        return Path(value).expanduser().exists()
+    except (OSError, RuntimeError, ValueError):
+        return False
 
 
 def _validate_fidelity(fidelity: float) -> float:

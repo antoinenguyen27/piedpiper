@@ -78,7 +78,7 @@ def call_frontier_model(prompt: str, provider: str = "openai") -> str:
     if provider == "openai":
         client = openai.OpenAI(api_key=OPENAI_API_KEY)
         resp = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-5.4-2026-03-05",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
@@ -86,23 +86,6 @@ def call_frontier_model(prompt: str, provider: str = "openai") -> str:
             temperature=0.0
         )
         return resp.choices[0].message.content
-
-    elif provider == "claude":
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-        resp = client.messages.create(
-            model="claude-3-5-sonnet-20240620",
-            max_tokens=1024,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0
-        )
-        return resp.content[0].text
-
-    elif provider == "gemini":
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-pro")
-        resp = model.generate_content(f"{system_prompt}\n\n{prompt}")
-        return resp.text
 
     return ""
 

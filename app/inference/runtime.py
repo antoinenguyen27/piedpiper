@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from functools import lru_cache
 
-# Pointing to your custom BERT model
+# Pointing back to your custom BERT model
 MODEL_NAME = "HuggingFacer112358/piedpiper"
 MODEL_SUBFOLDER = "run_3/checkpoint-epoch-9"
 CLIP_MODEL_NAME = "openai/clip-vit-base-patch32"
@@ -40,7 +39,7 @@ class CustomBERTCompressor:
     model to compress text and properly stitch WordPiece subwords.
     """
 
-    def __init__(self, model_name_or_path: str, device: str):
+    def __init__(self, model_name: str, subfolder: str, device: str):
         try:
             from transformers import AutoTokenizer, AutoModelForTokenClassification
             import torch
@@ -48,13 +47,16 @@ class CustomBERTCompressor:
             raise MissingTextRuntimeError("Transformers and Torch are required.") from exc
 
         self.device = device
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-        self.model = AutoModelForTokenClassification.from_pretrained(model_name_or_path).to(device)
-        self.model.eval()
         self.torch = torch
 
+        # Pass the subfolder argument natively to Hugging Face
+        kwargs = {"subfolder": subfolder} if subfolder else {}
+
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, **kwargs)
+        self.model = AutoModelForTokenClassification.from_pretrained(model_name, **kwargs).to(device)
+        self.model.eval()
+
     def compress_prompt(self, texts: list[str], rate: float, **kwargs) -> dict:
-        # **kwargs safely absorbs unused LLMLingua arguments passed by text_pipeline.py
         compressed_prompts = []
         total_origin = 0
         total_compressed = 0
@@ -105,15 +107,16 @@ class CustomBERTCompressor:
 
 @lru_cache(maxsize=1)
 def get_prompt_compressor():
-    # Automatically use local weights if they exist, otherwise fetch from HF
-    model_path = MODEL_SUBFOLDER if os.path.isdir(MODEL_SUBFOLDER) else MODEL_NAME
     device = _resolve_torch_device()
-
     try:
-        return CustomBERTCompressor(model_name_or_path=model_path, device=device)
+        return CustomBERTCompressor(
+            model_name=MODEL_NAME,
+            subfolder=MODEL_SUBFOLDER,
+            device=device
+        )
     except Exception as exc:
         raise MissingTextRuntimeError(
-            f"Failed to load custom BERT compressor from {model_path}. "
+            f"Failed to load custom BERT compressor from {MODEL_NAME}/{MODEL_SUBFOLDER}. "
             "Ensure transformers and torch are installed."
         ) from exc
 

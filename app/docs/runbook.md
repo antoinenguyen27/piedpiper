@@ -20,7 +20,7 @@ Current backend auth contract:
 
 - Modal Secret name: `pied-piper-backend`
 - Required secret key: `PIED_PIPER_API_KEY`
-- SDK/frontend base URL env var: `PIED_PIPER_BASE_URL`
+- SDK/frontend base URL override env var: `PIED_PIPER_BASE_URL`
 - Compression endpoint: `POST /v1/compress`
 
 ## 1. Modal Service Operations
@@ -72,7 +72,7 @@ modal serve -m app.inference.modal_app
 What to do next:
 
 1. Copy the HTTPS URL printed by Modal for the served app.
-2. Export it as the SDK base URL.
+2. Export it as `PIED_PIPER_BASE_URL` if you want your local caller to hit the dev app instead of production.
 3. Use the same bearer token value locally when testing clients.
 
 Example shell setup:
@@ -101,7 +101,7 @@ modal deploy -m app.inference.modal_app
 After deploy:
 
 1. Copy the deployed web endpoint URL from the CLI output or Modal dashboard.
-2. Set that URL wherever the SDK or any Python caller is configured.
+2. If you want callers to hit this deployment instead of the baked-in production service, set it as `PIED_PIPER_BASE_URL`.
 3. Keep `PIED_PIPER_API_KEY` synchronized between the Modal Secret and every calling app.
 
 Recommended verification:
@@ -115,11 +115,16 @@ If you need separate dev and prod stacks, use separate Modal environments and cr
 
 ### 1.5 Python caller configuration
 
-Any Python caller that talks to the deployed service needs these env vars:
+Any Python caller needs the API key. The base URL env var is only needed to override the baked-in production endpoint:
+
+```bash
+export PIED_PIPER_API_KEY="replace-me"
+```
+
+Optional override for local development or a non-production deployment:
 
 ```bash
 export PIED_PIPER_BASE_URL="https://<your-modal-url>.modal.run"
-export PIED_PIPER_API_KEY="replace-me"
 ```
 
 Minimal caller example:

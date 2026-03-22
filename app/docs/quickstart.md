@@ -20,10 +20,11 @@ python3 -m pip install openai
 ## 2. Configure environment variables
 
 ```bash
-export PIED_PIPER_BASE_URL="https://<your-modal-url>.modal.run"
 export PIED_PIPER_API_KEY="replace-me"
 export OPENAI_API_KEY="replace-me"
 ```
+
+The SDK already points at the production Pied Piper service. Set `PIED_PIPER_BASE_URL` only if you need to override it for local development or a different deployment.
 
 ## 3. Run the example
 

@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from pied_piper import Client
+from pied_piper.config import DEFAULT_BASE_URL
 from pied_piper.exceptions import AuthenticationError
 
 
@@ -100,3 +101,19 @@ def test_client_parses_output_file():
 
     assert result.items[0].output_file is not None
     assert result.items[0].output_file.as_bytes() == b"video"
+
+
+def test_client_uses_baked_default_base_url(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("PIED_PIPER_BASE_URL", raising=False)
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            json={"request_id": "req_123", "status": "completed", "items": []},
+        )
+    )
+
+    with Client(
+        api_key="secret",
+        http_client=httpx.Client(base_url=DEFAULT_BASE_URL, transport=transport),
+    ) as client:
+        assert client.base_url == DEFAULT_BASE_URL

@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 
-MODEL_NAME = "microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank"
+# MODEL_NAME = "microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank"
+MODEL_NAME = "HuggingFacer112358/piedpiper/run_3/checkpoint-epoch-9"
 CLIP_MODEL_NAME = "openai/clip-vit-base-patch32"
 
 
@@ -50,8 +51,8 @@ def get_prompt_compressor():
 @lru_cache(maxsize=1)
 def get_video_runtime() -> VideoRuntime:
     try:
-        from transnetv2_pytorch import TransNetV2
         from transformers import AutoProcessor, CLIPModel
+        from transnetv2_pytorch import TransNetV2
     except ImportError as exc:  # pragma: no cover - depends on runtime image
         raise MissingVideoRuntimeError(
             "Video runtime dependencies are not installed. Add TransNetV2, Transformers, "

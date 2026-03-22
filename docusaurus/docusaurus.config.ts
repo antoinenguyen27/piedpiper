@@ -5,6 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Pied Piper',
   tagline: 'Python SDK for multimodal compression',
+  favicon: 'img/logo.png',
   future: {
     v4: true,
   },

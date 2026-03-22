@@ -765,7 +765,6 @@ async def generate_openai_response(
             text_format=response_model,
             max_output_tokens=384,
             reasoning={"effort": DEFAULT_REASONING_EFFORT},
-            temperature=0.0,
         )
 
     outcome = await run_with_retry(

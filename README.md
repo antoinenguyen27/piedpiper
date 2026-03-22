@@ -1,6 +1,10 @@
+![Pied Piper banner](./assets/banner.png)
+
 # Pied Piper
 
 Pied Piper is a Python SDK for compressing text and file inputs before sending them into an LLM workflow.
+
+Full documentation is available [here](https://piedpiper-pi.vercel.app/).
 
 ## Access
 

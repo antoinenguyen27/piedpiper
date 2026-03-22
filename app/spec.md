@@ -20,7 +20,7 @@ That means the product plan should be:
 
 - make text inference real first
 - accept image inputs as passthrough from day one
-- accept video inputs with a stable stub contract now, and replace the backend implementation later without breaking the SDK
+- implement video context compression as a pre-inference clip selector that returns an inline MP4 artifact plus metadata
 
 The `app/` directory is therefore the product surface. The repository root stays as training code.
 
@@ -32,12 +32,11 @@ The `app/` directory is therefore the product surface. The repository root stays
 - Keep the SDK lightweight. It is an HTTP client, not a local inference runtime.
 - Put modality routing, document extraction, batching, and compression logic in the Modal service.
 - Use a single shared API key for the hackathon, stored as a Modal Secret and exposed to the service via environment variables.
-- Keep the first public contract stable even while the video pipeline is still a stub.
+- Keep the first public contract stable while extending it to carry inline binary artifacts for video outputs.
 
 ## 3. Non-goals
 
 - Multi-tenant auth, per-user API keys, JWT issuance, OAuth, billing, or usage quotas.
-- Finalized video compression artifacts or byte-level video output.
 - Local ML inference in the SDK.
 - Repackaging the current training root as a publishable package.
 - General file URL ingestion, directory ingestion, or in-memory PIL/numpy image ingestion in phase 0.
@@ -165,20 +164,21 @@ The package should export:
 
 The SDK should support these input shapes:
 
-| Python input | Meaning | Phase 0 behavior |
+| Python input | Meaning | Current behavior |
 | --- | --- | --- |
 | `str` | raw inline text | compressed |
 | `os.PathLike[str]` / `pathlib.Path` to `.txt`, `.md`, `.pdf`, `.docx`, `.pptx` | text-bearing file | uploaded, extracted remotely, compressed |
 | `os.PathLike[str]` / `pathlib.Path` to image suffix | image file | uploaded or represented, returned as passthrough |
-| `os.PathLike[str]` / `pathlib.Path` to video suffix | video file | uploaded, returns stable stub result |
+| `os.PathLike[str]` / `pathlib.Path` to video suffix | video file | uploaded, compressed into an inline MP4 artifact |
 | sequence of supported inputs | mixed batch | handled in original order |
 
-Phase 0 rules:
+Current rules:
 
 - `str` means raw text, not file path.
 - file inputs must be `PathLike`, not plain strings.
 - directories are rejected.
 - raw `bytes`, URLs, file-like objects, and glob patterns are out of scope for phase 0.
+- `fidelity` is the shared SDK parameter and always means the same thing: higher values preserve more for both text and video.
 
 This is deliberate. Treating plain strings as possible paths creates ambiguous behavior and a brittle API.
 
@@ -217,6 +217,7 @@ CompressionItemResult(
     source_name: str,
     status: Literal["completed", "passthrough", "stubbed", "failed"],
     output_text: str | None = None,
+    output_file: OutputFile | None = None,
     message: str | None = None,
     metrics: dict[str, object] | None = None,
     error: str | None = None,
@@ -227,7 +228,7 @@ Behavior:
 
 - text items use `status="completed"` and fill `output_text`
 - image items use `status="passthrough"`
-- video items use `status="stubbed"` in phase 0
+- video items use `status="completed"` and fill `output_file` with an inline MP4 artifact
 - failed item extraction/compression uses `status="failed"` with `error`
 
 Top-level status semantics:
@@ -428,7 +429,7 @@ Phase 0 expectations:
 
 - `GET /` may return a simple hello-world payload for smoke testing
 - `GET /health` returns service metadata and readiness
-- `POST /v1/compress` already uses the final request/response contract, even if some modalities are stubbed
+- `POST /v1/compress` returns the final request/response contract, including inline video artifacts
 
 This avoids writing the SDK twice.
 
@@ -471,8 +472,19 @@ The service returns JSON shaped like the SDK result contract. Example:
       "index": 1,
       "modality": "video",
       "source_name": "demo.mp4",
-      "status": "stubbed",
-      "message": "Video compression is not implemented yet."
+      "status": "completed",
+      "output_file": {
+        "file_name": "demo_compressed.mp4",
+        "content_type": "video/mp4",
+        "data_base64": "...",
+        "size_bytes": 123456
+      },
+      "metrics": {
+        "original_duration": 12.5,
+        "output_duration": 7.8,
+        "clips_total": 5,
+        "clips_kept": 3
+      }
     }
   ],
   "usage": {
@@ -535,30 +547,14 @@ Reason:
 - we need multiple routes: `/`, `/health`, `/v1/compress`
 - Modal docs explicitly recommend `@modal.asgi_app` for user-defined FastAPI applications with multiple routes
 
-### 13.2 Phase 0 stub deployment
-
-Phase 0 stub inference should use the smallest practical Modal CPU configuration:
-
-- CPU: `0.125` cores
-- memory: `128 MiB`
-- `min_containers=0`
-- keep `scaledown_window` at the default unless there is a concrete cold-start reason to change it
-
-Why:
-
-- Modal pricing docs state the minimum CPU per container is 0.125 cores and the minimum memory is 128 MiB
-- Modal scaling docs state functions scale to zero by default when there are no inputs
-
-This phase is for wiring and API validation, not GPU inference.
-
-### 13.3 Phase 1 real inference deployment
+### 13.2 GPU deployment
 
 When text and video inference are both active:
 
 - move to a single GPU-backed runtime
-- prefer a `@app.cls(...)` deployment with `@modal.enter()` lifecycle hook
 - load both text and video runtimes once per container start
-- route requests inside the container
+- mount a shared model cache for Hugging Face artifacts
+- keep `min_containers=0` so the service still scales to zero
 
 Initial concurrency stance:
 
@@ -567,7 +563,7 @@ Initial concurrency stance:
 
 This is the simplest robust path for a single-GPU service.
 
-### 13.4 GPU choice
+### 13.3 GPU choice
 
 The final GPU type is intentionally left open in this spec.
 
@@ -630,8 +626,8 @@ Responsibilities:
 
 Responsibilities:
 
-- phase 0: stub runtime helpers
-- phase 1: model loading and lifecycle-managed runtime ownership
+- model loading and lifecycle-managed runtime ownership
+- shared LLMLingua-2, TransNetV2, and CLIP accessors
 
 ## 15. Modality Routing Rules
 
@@ -665,15 +661,15 @@ Behavior:
 
 ### 15.3 Video
 
-Videos are accepted in phase 0 but remain stubbed.
+Videos are compressed before downstream inference using shot segmentation, CLIP scoring, and budgeted clip selection.
 
 Behavior:
 
-- return `status="stubbed"`
-- include a stable explanatory message
-- do not fake a compressed artifact
+- return `status="completed"` when compression succeeds
+- include an inline MP4 artifact in `output_file`
+- include clip-selection metadata in `metrics`
 
-This preserves the future API contract without freezing the wrong video output semantics.
+This keeps the API contract stable while still making the compressed video directly usable.
 
 ## 16. Text Pipeline Productization Plan
 
@@ -701,36 +697,19 @@ Productization changes:
 - convert all print-based output into structured response objects
 - convert failures into item-level errors whenever possible
 
-## 17. Video Pipeline Plan
+## 17. Video Pipeline
 
-The current root video code is not yet a finished inference pipeline.
+The application video path now implements a pre-downstream-inference clip selector:
 
-What exists now:
+- TransNetV2 shot segmentation
+- clip cleanup for short fragments
+- 1/3/5 frame sampling by clip duration
+- CLIP ViT-B/32 image embeddings
+- budgeted clip selection with task-agnostic novelty/coverage scoring
+- optional prompt-conditioned scoring
+- FFmpeg stitching back into a compressed MP4 artifact
 
-- a video dataset loader
-- a compressor model producing temporal mask probabilities
-- a training loop
-
-What does **not** yet exist:
-
-- final runtime artifact contract
-- packaging of model weights for inference
-- stable request-to-output schema for end users
-
-Therefore phase 0 and phase 1 contract rules are:
-
-- the SDK already accepts video inputs
-- the backend already returns video item results
-- the video result remains `stubbed` until the inference artifact is defined
-
-Future likely directions for video output, to be resolved later:
-
-- frame/timestamp selection manifest
-- compressed token sequence for downstream model input
-- stored artifact reference
-- reconstructed compressed video bytes
-
-This spec intentionally does not guess yet.
+The Modal runtime loads LLMLingua-2, TransNetV2, and CLIP into the same container image, with shared model cache storage.
 
 ## 18. Packaging Specification
 
@@ -833,7 +812,7 @@ Notes:
 - environment variable setup
 - simple `pied_piper.compress(...)` examples
 - mixed input example
-- note that video is stubbed and images are passthrough in the first release
+- note that images are passthrough and video returns an inline MP4 artifact
 
 ### 18.5 Installation flows
 
@@ -916,7 +895,7 @@ This is especially important for mixed batches.
 Use:
 
 ```bash
-modal serve app/inference/modal_app.py
+modal serve -m app.inference.modal_app
 ```
 
 This yields an ephemeral public URL and live reloads as files change.
@@ -926,7 +905,7 @@ This yields an ephemeral public URL and live reloads as files change.
 Use:
 
 ```bash
-modal deploy app/inference/modal_app.py
+modal deploy -m app.inference.modal_app
 ```
 
 The deployed function URL can then be surfaced in the SDK configuration as `PIED_PIPER_BASE_URL`.
@@ -951,8 +930,8 @@ Recommended implementation order:
 4. implement auth dependency using the shared bearer token
 5. implement SDK request building against the final contract
 6. implement real text path
-7. keep image passthrough and video stub stable
-8. later swap in the real GPU runtime without changing the SDK contract
+7. keep image passthrough stable
+8. implement the real GPU-backed video clip selector without changing the SDK contract
 
 ## 23. Source Notes
 

@@ -235,6 +235,8 @@ def build_units(sources: list[SourceText], options: TextOptions) -> list[TextUni
 def compress_text_sources(
     sources: list[SourceText],
     options: TextOptions,
+    *,
+    request_fidelity: float,
 ) -> tuple[list[CompressionItemResult], dict[str, int]]:
     if not sources:
         return [], {"origin_tokens": 0, "compressed_tokens": 0}
@@ -243,6 +245,7 @@ def compress_text_sources(
     batch_size = choose_batch_size(num_input_files=len(sources), num_units=len(units))
     batches = batched(units, batch_size=batch_size)
     compressor = get_prompt_compressor()
+    requested_fidelity = options.fidelity if options.fidelity is not None else request_fidelity
 
     results_by_item: dict[str, dict[str, object]] = {
         source.item_id: {
@@ -259,12 +262,13 @@ def compress_text_sources(
     for batch in batches:
         payload = compressor.compress_prompt(
             [unit.text for unit in batch],
-            rate=options.rate,
+            rate=requested_fidelity,
             target_token=options.target_token,
             use_context_level_filter=False,
             use_token_level_filter=True,
             keep_split=True,
-            force_tokens=["\n"],
+            force_tokens=["\n", ".", "!", "?"],
+            drop_consecutive=options.drop_consecutive,
         )
 
         compressed_contexts = payload.get("compressed_prompt_list")
@@ -313,9 +317,11 @@ def compress_text_sources(
                     "compression_rate": round(rate, 4),
                     "chunk_count": len(ordered_chunks),
                     "batch_size": batch_size,
+                    "request_fidelity": round(request_fidelity, 4),
+                    "resolved_text_fidelity": round(requested_fidelity, 4),
+                    "drop_consecutive": options.drop_consecutive,
                 },
             )
         )
 
     return items, usage
-

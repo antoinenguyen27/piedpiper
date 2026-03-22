@@ -45,6 +45,9 @@ image = (
         "numpy<2.0.0",
         "pandas",
         "tqdm",
+        # Setup tools
+        "gdown",
+        "huggingface_hub",
     )
     .add_local_dir(".", remote_path="/app")  # copy project source into the image
 )
@@ -64,12 +67,15 @@ VOLUME_MOUNT = "/data"
 )
 def train(
     num_epochs: int = 10,
-    batch_size: int = 4,
+    batch_size: int = 128,
     learning_rate: float = 1e-3,
     save_freq: int = 2,
     model_weights: str = "/data/models/flax_base_f16r288_repeated.npz",
     data_dir: str = "/data/datasets/eastgate/",
     checkpoint_dir: str = "/data/checkpoints",
+    telemetry: bool = False,
+    telemetry_interval: int = 10,
+    dataset_telemetry_interval: int = 50,
 ):
     """Run the full training loop on a Modal H100."""
 
@@ -137,6 +143,7 @@ def train(
     print(f"  LR      : {learning_rate}")
     print(f"  Ckpt dir: {checkpoint_dir}")
     print(f"  Device  : cuda ({torch.cuda.get_device_name(0)})")
+    print(f"  Telemetry: {'on' if telemetry else 'off'}")
     print()
 
     # --- Build components ---
@@ -148,6 +155,8 @@ def train(
         clip_length=16,
         sample_every_n=4,
         resolution=240,
+        telemetry=telemetry,
+        telemetry_interval=dataset_telemetry_interval,
     )
     train_dataloader = DataLoader(
         train_dataset, batch_size=batch_size, num_workers=4, pin_memory=True
@@ -163,6 +172,8 @@ def train(
         num_epochs=num_epochs,
         save_freq=save_freq,
         checkpoint_folder=checkpoint_dir,
+        telemetry=telemetry,
+        telemetry_interval=telemetry_interval,
     )
 
     epoch_history = train_model(compressor, teacher_model, config)
@@ -230,9 +241,18 @@ def setup_data():
 # ---------------------------------------------------------------------------
 
 @app.local_entrypoint()
-def main(setup: bool = False):
+def main(
+    setup: bool = False,
+    telemetry: bool = False,
+    telemetry_interval: int = 10,
+    dataset_telemetry_interval: int = 50,
+):
     if setup:
         setup_data.remote()
     
-    result = train.remote()
+    result = train.remote(
+        telemetry=telemetry,
+        telemetry_interval=telemetry_interval,
+        dataset_telemetry_interval=dataset_telemetry_interval,
+    )
     print("Epoch history:", result)

@@ -26,8 +26,8 @@ class Client:
         self.timeout = resolve_timeout(timeout)
         self._client = http_client or httpx.Client(base_url=self.base_url, timeout=self.timeout)
 
-    def compress(self, input_value: Any) -> CompressionResult:
-        normalized = normalize_input(input_value)
+    def compress(self, input_value: Any, *, fidelity: float = 0.33) -> CompressionResult:
+        normalized = normalize_input(input_value, fidelity=fidelity)
         headers = {"Authorization": f"Bearer {self.api_key}"}
 
         with ExitStack() as stack:

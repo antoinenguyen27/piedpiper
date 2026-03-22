@@ -6,15 +6,10 @@ This example does one thing end to end:
 2. use the compressed output as context for an OpenAI API request
 3. print the final response text
 
-The runnable script lives at [docs/examples/piedpiper_openai_quickstart.py](/Users/an/Documents/piedpiper/docs/examples/piedpiper_openai_quickstart.py).
-
 ## 1. Install dependencies
 
-From the repo root:
-
 ```bash
-python3 -m pip install -e app/packaging
-python3 -m pip install openai
+python3 -m pip install piedpiper-sdk openai
 ```
 
 ## 2. Configure environment variables
@@ -28,8 +23,10 @@ The SDK already points at the production Pied Piper service. Set `PIED_PIPER_BAS
 
 ## 3. Run the example
 
+Paste the example below into `quickstart.py`, then run:
+
 ```bash
-python3 docs/examples/piedpiper_openai_quickstart.py
+python3 quickstart.py
 ```
 
 ## 4. What the script does
@@ -48,35 +45,50 @@ from openai import OpenAI
 import pied_piper
 
 
-toy_text = """
+TOY_TEXT = """
 Pied Piper is acting as a preprocessing step before the LLM call.
 The goal is to shorten verbose source material while keeping the main facts.
 This toy example uses only inline text so the setup stays simple.
-"""
+The compressed result is then forwarded into a normal OpenAI API request.
+""".strip()
 
-compressed = pied_piper.compress(toy_text)
 
-# Other supported file inputs:
-# compressed = pied_piper.compress(Path("notes.pdf"))
-# compressed = pied_piper.compress(Path("slides.pptx"))
-# compressed = pied_piper.compress(Path("draft.md"))
+def main() -> None:
+    compressed = pied_piper.compress(TOY_TEXT)
 
-# Multiple inputs in one request:
-# compressed = pied_piper.compress([Path("notes.pdf"), Path("slides.pptx")])
-# compressed = pied_piper.compress([toy_text, Path("notes.pdf"), Path("diagram.png")])
-# compressed = pied_piper.compress([toy_text, Path("notes.pdf"), Path("demo.mp4")])
+    if compressed.status == "failed" or not compressed.text:
+        raise RuntimeError(f"Compression failed: status={compressed.status!r}")
 
-client = OpenAI()
-response = client.responses.create(
-    model="gpt-5.4",
-    input=(
-        "Use the compressed context below to answer the question.\n\n"
-        f"Compressed context:\n{compressed.text}\n\n"
-        "Question: What is Pied Piper doing in this example?"
-    ),
-)
+    # Other supported file inputs:
+    # compressed = pied_piper.compress(Path("notes.pdf"))
+    # compressed = pied_piper.compress(Path("slides.pptx"))
+    # compressed = pied_piper.compress(Path("draft.md"))
 
-print(response.output_text)
+    # Multiple inputs in one request:
+    # compressed = pied_piper.compress([Path("notes.pdf"), Path("slides.pptx")])
+    # compressed = pied_piper.compress([TOY_TEXT, Path("notes.pdf"), Path("diagram.png")])
+    # compressed = pied_piper.compress([TOY_TEXT, Path("notes.pdf"), Path("demo.mp4")])
+
+    client = OpenAI()
+    response = client.responses.create(
+        model="gpt-5.4",
+        input=(
+            "Use the compressed context below to answer the question.\n\n"
+            f"Compressed context:\n{compressed.text}\n\n"
+            "Question: What is Pied Piper doing in this example?"
+        ),
+    )
+
+    print("Compression status:", compressed.status)
+    print("Compressed text:")
+    print(compressed.text)
+    print()
+    print("OpenAI response:")
+    print(response.output_text)
+
+
+if __name__ == "__main__":
+    main()
 ```
 
 ## 6. Notes

@@ -67,7 +67,7 @@ class ManifestItem(BaseModel):
 
 
 class CompressionManifest(BaseModel):
-    sdk_version: str = "0.1.0"
+    sdk_version: str = "0.2.0"
     options: RequestOptions = Field(default_factory=RequestOptions)
     items: list[ManifestItem]
 

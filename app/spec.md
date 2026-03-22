@@ -359,7 +359,7 @@ Recommended manifest:
 
 ```json
 {
-  "sdk_version": "0.1.0",
+  "sdk_version": "0.2.0",
   "options": {
     "text": {
       "rate": 0.33,
@@ -756,7 +756,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "piedpiper-sdk"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python SDK for Pied Piper multimodal compression"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -106,11 +106,13 @@ def normalize_input(input_value: Any, *, fidelity: float = 0.33) -> NormalizedRe
                 "content_type": content_type,
             }
         )
-        uploads.append(FileUpload(field_name=field_name, path=path, content_type=content_type))
+        uploads.append(
+            FileUpload(field_name=field_name, path=path, content_type=content_type)
+        )
 
     return NormalizedRequest(
         manifest={
-            "sdk_version": "0.1.0",
+            "sdk_version": "0.2.0",
             "options": {
                 "fidelity": fidelity,
                 "text": {
@@ -131,7 +133,7 @@ def normalize_input(input_value: Any, *, fidelity: float = 0.33) -> NormalizedRe
                     "padding_seconds": 0.25,
                     "shot_threshold": 0.5,
                     "max_inline_bytes": 16000000,
-                }
+                },
             },
             "items": manifest_items,
         },

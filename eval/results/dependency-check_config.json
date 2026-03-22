@@ -1,0 +1,21 @@
+{
+  "backoff_base_seconds": 2.0,
+  "backoff_cap_seconds": 120.0,
+  "compression_timeout_seconds": 600.0,
+  "concurrency": 4,
+  "dataset_name": "TIGER-Lab/MMLU-Pro",
+  "fidelity": 0.8,
+  "jitter_max_seconds": 0.75,
+  "max_retries": 6,
+  "model": null,
+  "num_samples": 1,
+  "openai_timeout_seconds": 600.0,
+  "output_dir": "/Users/an/Documents/piedpiper/eval/results",
+  "provider": "openai",
+  "resume": true,
+  "run_name": "dependency-check",
+  "save_config": true,
+  "seed": 42,
+  "split": "test",
+  "use_compression": true
+}

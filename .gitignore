@@ -33,24 +33,31 @@ venv/
 *.bak
 
 # =========================
-# Data / generated files
+# Node / JavaScript
 # =========================
-*.csv
-*.tsv
-*.json
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+coverage/
 
 # =========================
-# XML and similar junk
+# Docusaurus
 # =========================
-*.xml
-*.html
+.docusaurus/
+build/
 
 # =========================
 # Build / output
 # =========================
-build/
 dist/
 *.egg-info/
+
+# =========================
+# Data / generated files
+# =========================
+*.csv
+*.tsv
 
 # =========================
 # Jupyter

@@ -1,0 +1,39 @@
+{
+  "config": {
+    "backoff_base_seconds": 2.0,
+    "backoff_cap_seconds": 180.0,
+    "compression_timeout_seconds": 600.0,
+    "concurrency": 4,
+    "dataset_name": "TIGER-Lab/MMLU-Pro",
+    "fidelity": 0.9,
+    "jitter_max_seconds": 1.0,
+    "max_retries": 8,
+    "model": "gpt-5.4",
+    "num_samples": 1200,
+    "openai_timeout_seconds": 600.0,
+    "output_dir": "/Users/an/Documents/piedpiper/eval/results",
+    "provider": "openai",
+    "resume": true,
+    "run_name": "mmlu-pro-1200-f09",
+    "save_config": true,
+    "seed": 42,
+    "split": "test",
+    "use_compression": true
+  },
+  "finished_at": "2026-03-22T11:19:22.760157+00:00",
+  "paths": {
+    "config_json": "/Users/an/Documents/piedpiper/eval/results/mmlu-pro-1200-f09_config.json",
+    "results_jsonl": "/Users/an/Documents/piedpiper/eval/results/mmlu-pro-1200-f09.jsonl",
+    "summary_json": "/Users/an/Documents/piedpiper/eval/results/mmlu-pro-1200-f09_summary.json"
+  },
+  "started_at": "2026-03-22T11:08:10.476848+00:00",
+  "totals": {
+    "accuracy": 0.0,
+    "completed": 0,
+    "correct": 0,
+    "errors": 1200,
+    "parsed_predictions": 0,
+    "requested_samples": 1200,
+    "selected_samples": 1200
+  }
+}

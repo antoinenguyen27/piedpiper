@@ -13,11 +13,11 @@ from .schemas import CompressionResponse, HealthResponse
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Pied Piper Inference", version="0.2.0")
+    app = FastAPI(title="Pied Piper Inference", version="0.2.1")
 
     @app.get("/")
     async def root():
-        return {"service": "pied-piper-inference", "version": "0.2.0"}
+        return {"service": "pied-piper-inference", "version": "0.2.1"}
 
     @app.get("/health", response_model=HealthResponse)
     async def health() -> HealthResponse:

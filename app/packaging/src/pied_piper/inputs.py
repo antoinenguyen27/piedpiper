@@ -112,7 +112,7 @@ def normalize_input(input_value: Any, *, fidelity: float = 0.9) -> NormalizedReq
 
     return NormalizedRequest(
         manifest={
-            "sdk_version": "0.2.0",
+            "sdk_version": "0.2.1",
             "options": {
                 "fidelity": fidelity,
                 "text": {

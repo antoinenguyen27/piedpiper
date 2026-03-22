@@ -18,7 +18,7 @@ Current package names:
 
 Current backend auth contract:
 
-- Modal Secret name: `pied-piper-backend`
+- Modal Secret name: `pied-piper-inference-backend`
 - Required secret key: `PIED_PIPER_API_KEY`
 - SDK/frontend base URL override env var: `PIED_PIPER_BASE_URL`
 - Compression endpoint: `POST /v1/compress`
@@ -50,13 +50,13 @@ If your workspace uses multiple Modal environments, choose one explicitly with `
 Create the backend secret once per Modal environment:
 
 ```bash
-modal secret create pied-piper-backend PIED_PIPER_API_KEY=replace-me
+modal secret create pied-piper-inference-backend PIED_PIPER_API_KEY=replace-me
 ```
 
 If you need to target a non-default environment:
 
 ```bash
-modal secret create -e dev pied-piper-backend PIED_PIPER_API_KEY=replace-me
+modal secret create -e dev pied-piper-inference-backend PIED_PIPER_API_KEY=replace-me
 ```
 
 If the secret already exists and you need to rotate the value, re-run the command with `--force`.
@@ -111,7 +111,7 @@ export PIED_PIPER_BASE_URL="https://<your-modal-url>.modal.run"
 curl "$PIED_PIPER_BASE_URL/health"
 ```
 
-If you need separate dev and prod stacks, use separate Modal environments and create `pied-piper-backend` in each environment with the correct `PIED_PIPER_API_KEY` value.
+If you need separate dev and prod stacks, use separate Modal environments and create `pied-piper-inference-backend` in each environment with the correct `PIED_PIPER_API_KEY` value.
 
 ### 1.5 Python caller configuration
 

@@ -362,7 +362,7 @@ Recommended manifest:
 
 ```json
 {
-  "sdk_version": "0.2.0",
+  "sdk_version": "0.2.1",
   "options": {
     "fidelity": 0.9,
     "text": {
@@ -763,7 +763,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "piedpiper-sdk"
-version = "0.2.0"
+version = "0.2.1"
 description = "Python SDK for Pied Piper multimodal compression"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -925,7 +925,7 @@ The hackathon secret should contain:
 
 Recommended secret name:
 
-- `pied-piper-backend`
+- `pied-piper-inference-backend`
 
 ## 22. Implementation Sequence
 

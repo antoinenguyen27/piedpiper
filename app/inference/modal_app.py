@@ -39,7 +39,7 @@ image = (
     gpu="T4",
     cpu=4.0,
     memory=16384,
-    secrets=[modal.Secret.from_name("pied-piper-backend")],
+    secrets=[modal.Secret.from_name("pied-piper-inference-backend")],
     volumes={"/models": model_cache},
     min_containers=0,
 )

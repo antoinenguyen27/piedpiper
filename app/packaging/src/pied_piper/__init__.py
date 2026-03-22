@@ -20,7 +20,7 @@ def _get_default_client() -> Client:
     return _default_client
 
 
-def compress(input, *, fidelity: float = 0.33):
+def compress(input, *, fidelity: float = 0.9):
     return _get_default_client().compress(input, fidelity=fidelity)
 
 

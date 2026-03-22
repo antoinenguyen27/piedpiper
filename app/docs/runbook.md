@@ -137,6 +137,17 @@ print(result.status)
 print(result.text)
 ```
 
+Fidelity semantics:
+
+- if the caller does not pass `fidelity`, the SDK and backend default to `0.9`
+- higher `fidelity` preserves more content
+- for text, Pied Piper passes `fidelity` through to LLMLingua as `rate`
+- `fidelity=0.9` therefore means "keep roughly 90% of the original tokens", not "drop 90%"
+- for video, Pied Piper uses `fidelity` directly as the target kept-duration budget before padding and merge
+- explicit `video.mode` remains available as an override for named presets
+- `video.fidelity` and `video.mode` are mutually exclusive; pass one or the other
+- response `compression_rate` is the observed output ratio `compressed_tokens / origin_tokens`, so it may differ from the requested `fidelity`
+
 ## 2. Python SDK Packaging And PyPI Release
 
 Use this section when you are changing, building, validating, or publishing `app/packaging`.

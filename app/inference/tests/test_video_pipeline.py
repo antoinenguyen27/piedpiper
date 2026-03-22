@@ -1,18 +1,43 @@
 from __future__ import annotations
 
+import pytest
+
 from app.inference.schemas import VideoOptions
 from app.inference.video_pipeline import (
     VideoClip,
     apply_padding_and_merge,
     merge_short_clips,
     resolve_video_fidelity,
+    resolve_video_mode,
     select_task_agnostic_clips,
 )
 
 
-def test_resolve_video_fidelity_defaults_to_conservative_for_default_request_fidelity():
+def test_resolve_video_fidelity_uses_request_fidelity_directly_by_default():
     options = VideoOptions()
-    assert resolve_video_fidelity(options, 0.33) == 0.75
+    assert resolve_video_fidelity(options, 0.9) == 0.9
+
+
+def test_resolve_video_fidelity_uses_low_request_fidelity_directly_by_default():
+    options = VideoOptions()
+    assert resolve_video_fidelity(options, 0.33) == 0.33
+
+
+def test_resolve_video_fidelity_respects_explicit_mode_override():
+    options = VideoOptions(mode="balanced")
+    assert resolve_video_fidelity(options, 0.9) == 0.60
+
+
+def test_resolve_video_mode_buckets_direct_fidelity_for_metrics():
+    options = VideoOptions()
+    assert resolve_video_mode(options, 0.9) == "conservative"
+    assert resolve_video_mode(options, 0.55) == "balanced"
+    assert resolve_video_mode(options, 0.2) == "aggressive"
+
+
+def test_video_options_reject_conflicting_fidelity_and_mode():
+    with pytest.raises(ValueError):
+        VideoOptions(fidelity=0.8, mode="balanced")
 
 
 def test_merge_short_clips_absorbs_fragmentation():

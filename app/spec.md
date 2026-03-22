@@ -179,6 +179,9 @@ Current rules:
 - directories are rejected.
 - raw `bytes`, URLs, file-like objects, and glob patterns are out of scope for phase 0.
 - `fidelity` is the shared SDK parameter and always means the same thing: higher values preserve more for both text and video.
+- for text, `fidelity` is passed through to LLMLingua as `rate`.
+- for video, `fidelity` is used directly as the target kept-duration budget unless an explicit `video.mode` override is provided.
+- `video.fidelity` and `video.mode` are mutually exclusive.
 
 This is deliberate. Treating plain strings as possible paths creates ambiguous behavior and a brittle API.
 
@@ -361,8 +364,9 @@ Recommended manifest:
 {
   "sdk_version": "0.2.0",
   "options": {
+    "fidelity": 0.9,
     "text": {
-      "rate": 0.33,
+      "fidelity": 0.9,
       "target_token": -1,
       "chunk_chars": 4000,
       "overlap_chars": 300
@@ -493,6 +497,9 @@ The service returns JSON shaped like the SDK result contract. Example:
   }
 }
 ```
+
+`compression_rate` in the response is the observed output ratio `compressed_tokens / origin_tokens`.
+For text requests, the input `fidelity` is passed through to LLMLingua as `rate`, so the requested fidelity and the measured compression rate are related but not guaranteed to be identical.
 
 ## 12. Authentication Model
 

@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 
-# MODEL_NAME = "microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank"
-MODEL_NAME = "HuggingFacer112358/piedpiper/run_3/checkpoint-epoch-9"
+MODEL_NAME = "microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank"
+# MODEL_NAME = "HuggingFacer112358/piedpiper"
+# MODEL_SUBFOLDER = "run_3/checkpoint-epoch-9"
 CLIP_MODEL_NAME = "openai/clip-vit-base-patch32"
 
 
@@ -45,6 +46,7 @@ def get_prompt_compressor():
         model_name=MODEL_NAME,
         use_llmlingua2=True,
         device_map=_resolve_torch_device(),
+        # model_config={"subfolder": MODEL_SUBFOLDER},
     )
 
 

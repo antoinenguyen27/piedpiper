@@ -2,20 +2,19 @@ import os
 import re
 import json
 import time
-import requests
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Dict, Any
 
 import openai
-import anthropic
-import google.generativeai as genai
 from datasets import load_dataset
 from tqdm import tqdm
+
+# Import your local compression library
+import pied_piper
 
 # ==========================================
 # 1. Configuration & Constants
 # ==========================================
-COMPRESSION_API_URL = "http://your-compression-service.internal/compress"
 USE_COMPRESSION = True  # Toggle for Baseline (False) vs. Test (True)
 
 # Set these in your environment or replace here
@@ -25,7 +24,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "your-key")
 
 
 # ==========================================
-# 2. Data Structures (From your pipeline)
+# 2. Data Structures
 # ==========================================
 @dataclass(slots=True)
 class SourceText:
@@ -45,28 +44,25 @@ class TextOptions:
 
 
 # ==========================================
-# 3. Compression API Wrapper
+# 3. Local Compression Wrapper
 # ==========================================
 def call_compression_api(text: str, fidelity: float = 0.5) -> str:
     """
-    Calls your hosted LLMLingua2 compression service.
+    Calls the local pied_piper compression library exactly like test.py.
     """
     if not USE_COMPRESSION:
         return text
 
-    payload = {
-        "text": text,
-        "fidelity": fidelity,
-        "use_token_level_filter": True,
-        "force_tokens": ["\n", "A)", "B)", "C)", "D)", "E)", "F)", "G)", "H)", "I)", "J)"]
-    }
-
     try:
-        response = requests.post(COMPRESSION_API_URL, json=payload, timeout=60)
-        response.raise_for_status()
-        return response.json().get("compressed_text", text)
+        # Pass the text to pied_piper just like in the test script
+        compressed = pied_piper.compress(text)
+
+        # Ensure we return the .text attribute. Fallback to original if empty.
+        if compressed and hasattr(compressed, 'text') and compressed.text:
+            return compressed.text
+        return text
     except Exception as e:
-        print(f"Compression API Error: {e}")
+        print(f"Pied Piper Compression Error: {e}")
         return text
 
 
@@ -146,11 +142,11 @@ def extract_answer_letter(response_text: str) -> Optional[str]:
 # ==========================================
 # 6. Main Evaluation Loop
 # ==========================================
-def run_evaluation(provider: str = "openai", num_samples: int = 50, fidelity: float = 0.5):
+def run_evaluation(provider: str = "openai", num_samples: int = 50, fidelity: float = 0.8):
     print(f"--- Starting Eval: {provider.upper()} | Compression: {USE_COMPRESSION} (Fidelity: {fidelity}) ---")
 
     # Load MMLU-Pro (using subset for speed)
-    dataset = load_dataset("TIGER-Lab/MMLU-Pro", split="test_piedpiper", trust_remote_code=True)
+    dataset = load_dataset("TIGER-Lab/MMLU-Pro", split="test")
     dataset = dataset.shuffle(seed=42).select(range(num_samples))
 
     stats = {"correct": 0, "total": 0, "errors": 0}
@@ -159,7 +155,7 @@ def run_evaluation(provider: str = "openai", num_samples: int = 50, fidelity: fl
     for item in tqdm(dataset, desc="Evaluating"):
         raw_prompt = format_mmlu_prompt(item)
 
-        # Step 1: Compress
+        # Step 1: Compress the formatted prompt using pied_piper
         final_prompt = call_compression_api(raw_prompt, fidelity=fidelity)
 
         # Step 2: Inference
@@ -174,11 +170,13 @@ def run_evaluation(provider: str = "openai", num_samples: int = 50, fidelity: fl
             stats["total"] += 1
 
             results_log.append({
-                "id": item.get("question_id"),
+                "id": item.get("question_id", str(stats["total"])),
                 "actual": actual,
                 "predicted": predicted,
                 "correct": is_correct,
-                "compressed": USE_COMPRESSION
+                "compressed": USE_COMPRESSION,
+                "raw_prompt_length": len(raw_prompt),
+                "compressed_prompt_length": len(final_prompt)  # Added logging to verify compression
             })
 
             # Rate limiting safety for Tier 1 APIs
@@ -199,12 +197,12 @@ def run_evaluation(provider: str = "openai", num_samples: int = 50, fidelity: fl
     print("=" * 30)
 
     # Save results to disk
-    with open(f"results_{provider}_{'compressed' if USE_COMPRESSION else 'raw'}.json", "w") as f:
+    filename = f"results_{provider}_{'compressed' if USE_COMPRESSION else 'raw'}.json"
+    with open(filename, "w") as f:
         json.dump(results_log, f, indent=2)
+    print(f"Results saved to {filename}")
 
 
 if __name__ == "__main__":
-    # Example usage:
-    # 1. Run baseline (USE_COMPRESSION = False)
-    # 2. Run test_piedpiper (USE_COMPRESSION = True)
-    run_evaluation(provider="openai", num_samples=10, fidelity=0.4)
+    # Ensure you have set your API keys as environment variables before running!
+    run_evaluation(provider="openai", num_samples=10, fidelity=0.8)

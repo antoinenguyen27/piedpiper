@@ -895,7 +895,7 @@ This is especially important for mixed batches.
 Use:
 
 ```bash
-modal serve app/inference/modal_app.py
+modal serve -m app.inference.modal_app
 ```
 
 This yields an ephemeral public URL and live reloads as files change.
@@ -905,7 +905,7 @@ This yields an ephemeral public URL and live reloads as files change.
 Use:
 
 ```bash
-modal deploy app/inference/modal_app.py
+modal deploy -m app.inference.modal_app
 ```
 
 The deployed function URL can then be surfaced in the SDK configuration as `PIED_PIPER_BASE_URL`.

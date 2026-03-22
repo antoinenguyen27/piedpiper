@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import modal
 
-from .api import create_app
-
 
 app = modal.App("pied-piper-inference")
 model_cache = modal.Volume.from_name("pied-piper-model-cache", create_if_missing=True)
@@ -47,4 +45,6 @@ image = (
 )
 @modal.asgi_app()
 def fastapi_app():
+    from .api import create_app
+
     return create_app()

@@ -6,6 +6,8 @@ Pied Piper is a Python SDK for compressing text and file inputs before sending t
 
 Full documentation is available [here](https://piedpiper-pi.vercel.app/).
 
+[Find out more on our website](https://piedpiper-2dzt.vercel.app/).
+
 ## Access
 
 You need a Pied Piper API key before you can use the SDK. Request one from [Antoine](https://www.linkedin.com/in/antoine-n-633b84200/).

@@ -10,12 +10,13 @@ python -m pip install -e app/packaging
 
 ## Configure
 
-Set these environment variables:
+Set your API key:
 
 ```bash
-export PIED_PIPER_BASE_URL="https://your-modal-url"
 export PIED_PIPER_API_KEY="your-shared-api-key"
 ```
+
+The SDK defaults to the production Pied Piper service URL. `PIED_PIPER_BASE_URL` is only needed if you want to override that for local development or a non-production deployment.
 
 ## Quickstart
 

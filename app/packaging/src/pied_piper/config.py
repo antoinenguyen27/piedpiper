@@ -6,11 +6,12 @@ import httpx
 
 from .exceptions import ConfigurationError
 
+DEFAULT_BASE_URL = "https://antoinenguyen27--pied-piper-inference-fastapi-app.modal.run"
 DEFAULT_TIMEOUT = httpx.Timeout(connect=10.0, write=60.0, read=300.0, pool=10.0)
 
 
 def resolve_base_url(base_url: str | None) -> str:
-    value = base_url or os.environ.get("PIED_PIPER_BASE_URL")
+    value = base_url or os.environ.get("PIED_PIPER_BASE_URL") or DEFAULT_BASE_URL
     if not value:
         raise ConfigurationError(
             "Missing base URL. Set PIED_PIPER_BASE_URL or pass base_url explicitly."
@@ -33,4 +34,3 @@ def resolve_timeout(timeout: float | httpx.Timeout | None) -> httpx.Timeout:
     if isinstance(timeout, httpx.Timeout):
         return timeout
     return httpx.Timeout(timeout)
-

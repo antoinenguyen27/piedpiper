@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 
-MODEL_NAME = "microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank"
-# MODEL_NAME = "HuggingFacer112358/piedpiper"
-# MODEL_SUBFOLDER = "run_3/checkpoint-epoch-9"
+# Pointing to your custom BERT model
+MODEL_NAME = "HuggingFacer112358/piedpiper"
+MODEL_SUBFOLDER = "run_3/checkpoint-epoch-9"
 CLIP_MODEL_NAME = "openai/clip-vit-base-patch32"
 
 
@@ -33,21 +34,88 @@ def _resolve_torch_device() -> str:
     return "cuda" if torch.cuda.is_available() else "cpu"
 
 
+class CustomBERTCompressor:
+    """
+    A drop-in replacement for LLMLingua that uses a custom BERT token classification
+    model to compress text and properly stitch WordPiece subwords.
+    """
+
+    def __init__(self, model_name_or_path: str, device: str):
+        try:
+            from transformers import AutoTokenizer, AutoModelForTokenClassification
+            import torch
+        except ImportError as exc:
+            raise MissingTextRuntimeError("Transformers and Torch are required.") from exc
+
+        self.device = device
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+        self.model = AutoModelForTokenClassification.from_pretrained(model_name_or_path).to(device)
+        self.model.eval()
+        self.torch = torch
+
+    def compress_prompt(self, texts: list[str], rate: float, **kwargs) -> dict:
+        # **kwargs safely absorbs unused LLMLingua arguments passed by text_pipeline.py
+        compressed_prompts = []
+        total_origin = 0
+        total_compressed = 0
+
+        for text in texts:
+            # 1. Tokenize chunk (Safety truncation at 512)
+            inputs = self.tokenizer(
+                text,
+                return_tensors="pt",
+                truncation=True,
+                max_length=512
+            ).to(self.device)
+
+            input_ids = inputs["input_ids"][0]
+            total_origin += len(input_ids)
+
+            # 2. Inference
+            with self.torch.no_grad():
+                outputs = self.model(**inputs)
+
+            # Assuming index 1 represents the "keep" class probabilities
+            logits = outputs.logits[0]
+            probabilities = self.torch.softmax(logits, dim=-1)[:, 1]
+
+            # 3. Apply target token rate
+            target_token_count = max(1, int(len(input_ids) * rate))
+
+            top_indices = self.torch.topk(probabilities, target_token_count).indices
+            kept_indices = self.torch.sort(top_indices).values
+            kept_ids = input_ids[kept_indices]
+
+            # Drop special tokens ([CLS], [SEP])
+            special_ids = set(self.tokenizer.all_special_ids)
+            clean_kept_ids = [idx.item() for idx in kept_ids if idx.item() not in special_ids]
+
+            total_compressed += len(clean_kept_ids)
+
+            # 4. The Stitcher: Decode back to clean text
+            compressed_text = self.tokenizer.decode(clean_kept_ids, clean_up_tokenization_spaces=True)
+            compressed_prompts.append(compressed_text)
+
+        return {
+            "compressed_prompt_list": compressed_prompts,
+            "origin_tokens": total_origin,
+            "compressed_tokens": total_compressed
+        }
+
+
 @lru_cache(maxsize=1)
 def get_prompt_compressor():
-    try:
-        from llmlingua import PromptCompressor
-    except ImportError as exc:  # pragma: no cover - depends on runtime image
-        raise MissingTextRuntimeError(
-            "llmlingua is not installed. Add it to the inference runtime image."
-        ) from exc
+    # Automatically use local weights if they exist, otherwise fetch from HF
+    model_path = MODEL_SUBFOLDER if os.path.isdir(MODEL_SUBFOLDER) else MODEL_NAME
+    device = _resolve_torch_device()
 
-    return PromptCompressor(
-        model_name=MODEL_NAME,
-        use_llmlingua2=True,
-        device_map=_resolve_torch_device(),
-        # model_config={"subfolder": MODEL_SUBFOLDER},
-    )
+    try:
+        return CustomBERTCompressor(model_name_or_path=model_path, device=device)
+    except Exception as exc:
+        raise MissingTextRuntimeError(
+            f"Failed to load custom BERT compressor from {model_path}. "
+            "Ensure transformers and torch are installed."
+        ) from exc
 
 
 @lru_cache(maxsize=1)

@@ -41,10 +41,12 @@ class CustomBERTCompressor:
 
     def __init__(self, model_name: str, subfolder: str, device: str):
         try:
-            from transformers import AutoTokenizer, AutoModelForTokenClassification
             import torch
+            from transformers import AutoModelForTokenClassification, AutoTokenizer
         except ImportError as exc:
-            raise MissingTextRuntimeError("Transformers and Torch are required.") from exc
+            raise MissingTextRuntimeError(
+                "Transformers and Torch are required."
+            ) from exc
 
         self.device = device
         self.torch = torch
@@ -53,7 +55,9 @@ class CustomBERTCompressor:
         kwargs = {"subfolder": subfolder} if subfolder else {}
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, **kwargs)
-        self.model = AutoModelForTokenClassification.from_pretrained(model_name, **kwargs).to(device)
+        self.model = AutoModelForTokenClassification.from_pretrained(
+            model_name, **kwargs
+        ).to(device)
         self.model.eval()
 
     def compress_prompt(self, texts: list[str], rate: float, **kwargs) -> dict:
@@ -62,12 +66,9 @@ class CustomBERTCompressor:
         total_compressed = 0
 
         for text in texts:
-            # 1. Tokenize chunk (Safety truncation at 512)
+            # 1. Tokenize chunk (Safety truncation at 1024)
             inputs = self.tokenizer(
-                text,
-                return_tensors="pt",
-                truncation=True,
-                max_length=512
+                text, return_tensors="pt", truncation=True, max_length=1024
             ).to(self.device)
 
             # DistilBERT does not accept token_type_ids; drop it if present
@@ -93,18 +94,22 @@ class CustomBERTCompressor:
 
             # Drop special tokens ([CLS], [SEP])
             special_ids = set(self.tokenizer.all_special_ids)
-            clean_kept_ids = [idx.item() for idx in kept_ids if idx.item() not in special_ids]
+            clean_kept_ids = [
+                idx.item() for idx in kept_ids if idx.item() not in special_ids
+            ]
 
             total_compressed += len(clean_kept_ids)
 
             # 4. The Stitcher: Decode back to clean text
-            compressed_text = self.tokenizer.decode(clean_kept_ids, clean_up_tokenization_spaces=True)
+            compressed_text = self.tokenizer.decode(
+                clean_kept_ids, clean_up_tokenization_spaces=True
+            )
             compressed_prompts.append(compressed_text)
 
         return {
             "compressed_prompt_list": compressed_prompts,
             "origin_tokens": total_origin,
-            "compressed_tokens": total_compressed
+            "compressed_tokens": total_compressed,
         }
 
 
@@ -113,9 +118,7 @@ def get_prompt_compressor():
     device = _resolve_torch_device()
     try:
         return CustomBERTCompressor(
-            model_name=MODEL_NAME,
-            subfolder=MODEL_SUBFOLDER,
-            device=device
+            model_name=MODEL_NAME, subfolder=MODEL_SUBFOLDER, device=device
         )
     except Exception as exc:
         raise MissingTextRuntimeError(

@@ -16,6 +16,12 @@ def test_normalize_inline_text():
     assert request.manifest["options"]["text"]["fidelity"] == 0.55
 
 
+def test_normalize_inline_text_uses_default_fidelity():
+    request = normalize_input("hello")
+    assert request.manifest["options"]["fidelity"] == 0.9
+    assert request.manifest["options"]["text"]["fidelity"] == 0.9
+
+
 def test_normalize_multiline_inline_text():
     text = """
 Pied Piper is acting as a preprocessing step before the LLM call.

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class TextOptions(BaseModel):
@@ -25,9 +25,15 @@ class VideoOptions(BaseModel):
     shot_threshold: float = Field(default=0.5, gt=0.0, lt=1.0)
     max_inline_bytes: int = Field(default=16_000_000, gt=0)
 
+    @model_validator(mode="after")
+    def validate_fidelity_mode_exclusive(self) -> "VideoOptions":
+        if self.fidelity is not None and self.mode is not None:
+            raise ValueError("Specify at most one of video.fidelity or video.mode.")
+        return self
+
 
 class RequestOptions(BaseModel):
-    fidelity: float = Field(default=0.33, gt=0.0, lt=1.0)
+    fidelity: float = Field(default=0.9, gt=0.0, lt=1.0)
     text: TextOptions = Field(default_factory=TextOptions)
     video: VideoOptions = Field(default_factory=VideoOptions)
 
@@ -39,15 +45,20 @@ class RequestOptions(BaseModel):
     def resolved_video_mode(self) -> Literal["conservative", "balanced", "aggressive"]:
         if self.video.mode is not None:
             return self.video.mode
-        if self.fidelity < 0.4:
-            return "conservative"
-        if self.fidelity < 0.7:
+        resolved_fidelity = (
+            self.video.fidelity if self.video.fidelity is not None else self.fidelity
+        )
+        if resolved_fidelity < 0.4:
+            return "aggressive"
+        if resolved_fidelity < 0.7:
             return "balanced"
-        return "aggressive"
+        return "conservative"
 
     def resolved_video_fidelity(self) -> float:
         if self.video.fidelity is not None:
             return self.video.fidelity
+        if self.video.mode is None:
+            return self.fidelity
         mode = self.resolved_video_mode()
         return {
             "conservative": 0.75,

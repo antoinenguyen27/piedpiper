@@ -50,17 +50,20 @@ def reindex_clips(clips: list[VideoClip]) -> list[VideoClip]:
 def resolve_video_mode(options: VideoOptions, request_fidelity: float) -> str:
     if options.mode is not None:
         return options.mode
-    if request_fidelity < 0.4:
-        return "conservative"
-    if request_fidelity < 0.7:
+    resolved_fidelity = options.fidelity if options.fidelity is not None else request_fidelity
+    if resolved_fidelity < 0.4:
+        return "aggressive"
+    if resolved_fidelity < 0.7:
         return "balanced"
-    return "aggressive"
+    return "conservative"
 
 
 def resolve_video_fidelity(options: VideoOptions, request_fidelity: float) -> float:
     if options.fidelity is not None:
         return options.fidelity
-    mode = resolve_video_mode(options, request_fidelity)
+    if options.mode is None:
+        return request_fidelity
+    mode = options.mode
     return {
         "conservative": 0.75,
         "balanced": 0.60,

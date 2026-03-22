@@ -51,7 +51,7 @@ def _validate_fidelity(fidelity: float) -> float:
     return value
 
 
-def normalize_input(input_value: Any, *, fidelity: float = 0.33) -> NormalizedRequest:
+def normalize_input(input_value: Any, *, fidelity: float = 0.9) -> NormalizedRequest:
     fidelity = _validate_fidelity(fidelity)
     items = _flatten_input(input_value)
     manifest_items: list[dict[str, Any]] = []

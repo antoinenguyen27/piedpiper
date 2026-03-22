@@ -23,10 +23,19 @@ The SDK defaults to the production Pied Piper service URL. `PIED_PIPER_BASE_URL`
 ```python
 import pied_piper
 
-result = pied_piper.compress("Long inline text to compress", fidelity=0.33)
+result = pied_piper.compress("Long inline text to compress")
 print(result.status)
 print(result.text)
 ```
+
+Default fidelity behavior:
+
+- if you do not pass `fidelity`, the SDK uses `0.9`
+- higher `fidelity` preserves more content
+- for text, `fidelity` maps to LLMLingua `rate`
+- `fidelity=0.9` therefore means "keep roughly 90% of the original tokens", not "drop 90%"
+- for video, `fidelity` maps directly to the target kept-duration budget before padding and merge
+- the returned `compression_rate` is the observed output ratio `compressed_tokens / origin_tokens`, so it may differ from the requested `fidelity`
 
 ## Mixed inputs
 

@@ -58,8 +58,8 @@ Optional text-conditioning is supported but not required
 ### Optional
 
 * `prompt: str` (text conditioning)
-* `fidelity: float` (0.0–1.0, higher preserves more)
-* `mode: {conservative, balanced, aggressive}`
+* `fidelity: float` (0.0–1.0, higher preserves more; maps directly to the target kept-duration budget)
+* `mode: {conservative, balanced, aggressive}` (optional preset override; mutually exclusive with `fidelity`)
 
 ---
 
@@ -80,6 +80,12 @@ Optional text-conditioning is supported but not required
   "clips_removed": 31
 }
 ```
+
+Notes:
+
+* output duration is approximate rather than exact
+* the selector targets `original_duration * fidelity` before padding and merge
+* use either direct numeric `fidelity` or explicit `mode`, but not both
 
 ---
 
